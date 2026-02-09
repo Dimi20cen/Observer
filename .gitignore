@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+
+venv/
+.venv/
+
+models/
+
+.DS_Store
+
+self-notes.md
