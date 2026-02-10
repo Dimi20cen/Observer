@@ -11,9 +11,13 @@ All notable changes to this project are documented in this file.
   - `THUMBS UP` -> youtube
   - `OPEN PALM` -> lol
 - Per-activity timers with live HUD display while app is running.
+- Runtime gate script at `scripts/gate.sh`.
+- Unit tests for activity tracking and gesture hold behavior.
 
 ### Changed
 - Console output now reports activity transitions (`ACTIVE: ...` / `STOPPED`) instead of numeric gesture ids.
+- Gestures must remain stable for at least 1.5 seconds before registration.
+- Gesture registration now requires palm-facing orientation.
 
 ## [0.1.0] - 2026-02-09
 

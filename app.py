@@ -121,6 +121,23 @@ class GestureSmoother:
         return None
 
 
+class GestureHoldGate:
+    def __init__(self, min_hold_seconds: float = 1.5) -> None:
+        self.min_hold_seconds = min_hold_seconds
+        self.current_candidate: Optional[str] = None
+        self.candidate_since = 0.0
+
+    def update(self, gesture: Optional[str], now: float) -> Optional[str]:
+        if gesture != self.current_candidate:
+            self.current_candidate = gesture
+            self.candidate_since = now
+        if self.current_candidate is None:
+            return None
+        if (now - self.candidate_since) >= self.min_hold_seconds:
+            return self.current_candidate
+        return None
+
+
 class ActivityTracker:
     def __init__(self, cooldown_seconds: float = 0.8) -> None:
         self.totals = {activity: 0.0 for activity in ACTIVITIES}
@@ -169,15 +186,44 @@ def format_seconds(seconds: float) -> str:
     return f"{minutes:02d}:{secs:02d}"
 
 
+def palm_facing_camera(landmarks, handedness_label: Optional[str]) -> bool:
+    wrist = landmarks[0]
+    index_mcp = landmarks[5]
+    pinky_mcp = landmarks[17]
+    middle_mcp = landmarks[9]
+    middle_tip = landmarks[12]
+
+    v1x = index_mcp.x - wrist.x
+    v1y = index_mcp.y - wrist.y
+    v1z = index_mcp.z - wrist.z
+    v2x = pinky_mcp.x - wrist.x
+    v2y = pinky_mcp.y - wrist.y
+    v2z = pinky_mcp.z - wrist.z
+    normal_z = (v1x * v2y) - (v1y * v2x)
+
+    if handedness_label == "Right":
+        orientation_ok = normal_z < 0.0
+    elif handedness_label == "Left":
+        orientation_ok = normal_z > 0.0
+    else:
+        orientation_ok = abs(normal_z) > 0.002
+
+    # Palm-facing frames often place middle fingertip nearer than middle MCP.
+    depth_ok = (middle_tip.z - middle_mcp.z) < 0.03
+    return orientation_ok and depth_ok
+
+
 def draw_hud(
     frame,
     current_gesture: Optional[str],
+    palm_ok: bool,
     tracker: ActivityTracker,
     now: float,
 ) -> None:
     totals = tracker.snapshot(now)
     lines = [
         f"Gesture: {current_gesture or '-'}",
+        f"Palm OK: {'YES' if palm_ok else 'NO'}",
         f"Activity: {tracker.active_activity or 'IDLE'}",
         f"Studying: {format_seconds(totals['studying'])}",
         f"YouTube : {format_seconds(totals['youtube'])}",
@@ -219,6 +265,7 @@ def run_with_solutions(cap: cv2.VideoCapture) -> None:
     mp_drawing = mp.solutions.drawing_utils
     previous_activity = None
     smoother = GestureSmoother()
+    hold_gate = GestureHoldGate(1.5)
     tracker = ActivityTracker()
 
     with mp_hands.Hands(
@@ -236,18 +283,29 @@ def run_with_solutions(cap: cv2.VideoCapture) -> None:
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             result = hands.process(rgb)
 
-            current = None
+            stable_gesture = None
+            held_gesture = None
+            palm_ok = False
             if result.multi_hand_landmarks:
                 hand = result.multi_hand_landmarks[0]
                 mp_drawing.draw_landmarks(frame, hand, mp_hands.HAND_CONNECTIONS)
-                current = smoother.update(detect_gesture(hand.landmark))
+                handedness = None
+                if result.multi_handedness:
+                    handedness = result.multi_handedness[0].classification[0].label
+                palm_ok = palm_facing_camera(hand.landmark, handedness)
+                stable_gesture = smoother.update(detect_gesture(hand.landmark))
+                if palm_ok:
+                    held_gesture = hold_gate.update(stable_gesture, time.monotonic())
+                else:
+                    held_gesture = hold_gate.update(None, time.monotonic())
             else:
-                current = smoother.update(None)
+                stable_gesture = smoother.update(None)
+                held_gesture = hold_gate.update(None, time.monotonic())
 
             previous_activity = handle_activity_update(
-                current, tracker, previous_activity
+                held_gesture, tracker, previous_activity
             )
-            draw_hud(frame, current, tracker, time.monotonic())
+            draw_hud(frame, stable_gesture, palm_ok, tracker, time.monotonic())
             cv2.imshow("Observer v2", frame)
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
@@ -291,6 +349,7 @@ def run_with_tasks(cap: cv2.VideoCapture, model_path: str) -> None:
     )
     previous_activity = None
     smoother = GestureSmoother()
+    hold_gate = GestureHoldGate(1.5)
     tracker = ActivityTracker()
     start = time.monotonic()
 
@@ -306,22 +365,33 @@ def run_with_tasks(cap: cv2.VideoCapture, model_path: str) -> None:
             timestamp_ms = int((time.monotonic() - start) * 1000.0)
             result = hand_landmarker.detect_for_video(mp_image, timestamp_ms)
 
-            current = None
+            stable_gesture = None
+            held_gesture = None
+            palm_ok = False
             if result.hand_landmarks:
                 landmarks = result.hand_landmarks[0]
-                current = smoother.update(detect_gesture(landmarks))
+                handedness = None
+                if result.handedness and result.handedness[0]:
+                    handedness = result.handedness[0][0].category_name
+                palm_ok = palm_facing_camera(landmarks, handedness)
+                stable_gesture = smoother.update(detect_gesture(landmarks))
+                if palm_ok:
+                    held_gesture = hold_gate.update(stable_gesture, time.monotonic())
+                else:
+                    held_gesture = hold_gate.update(None, time.monotonic())
 
                 for lm in landmarks:
                     x = int(lm.x * frame.shape[1])
                     y = int(lm.y * frame.shape[0])
                     cv2.circle(frame, (x, y), 3, (255, 255, 0), -1)
             else:
-                current = smoother.update(None)
+                stable_gesture = smoother.update(None)
+                held_gesture = hold_gate.update(None, time.monotonic())
 
             previous_activity = handle_activity_update(
-                current, tracker, previous_activity
+                held_gesture, tracker, previous_activity
             )
-            draw_hud(frame, current, tracker, time.monotonic())
+            draw_hud(frame, stable_gesture, palm_ok, tracker, time.monotonic())
             cv2.imshow("Observer v2", frame)
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break

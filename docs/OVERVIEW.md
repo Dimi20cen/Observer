@@ -16,6 +16,8 @@ Recognize hand gestures from a live camera feed, map them to activities, and tra
 - MediaPipe detects hand landmarks (Solutions API when available, Tasks API fallback on Python 3.13 builds).
 - Rule-based gesture logic classifies hand shape (`FIST`, `ILY SIGN`, `THUMBS UP`, `OPEN PALM`).
 - Temporal smoothing stabilizes predictions.
+- Gesture hold gate requires `1.5s` of stable gesture before activity transitions.
+- Palm-facing gate rejects gestures when hand is not facing inside toward camera.
 - Activity state machine applies gesture->activity transitions.
 - Timer accumulator keeps elapsed seconds for each activity.
 

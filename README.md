@@ -38,6 +38,8 @@ If no video appears, try other indexes (`1`, `2`, `3`).
 ## Runtime behavior
 
 - Gesture is smoothed over multiple frames before switching activity.
+- Gesture must remain stable for at least `1.5` seconds before it is accepted.
+- Gesture is accepted only when palm side is facing the camera (`Palm OK: YES` in HUD).
 - A cooldown prevents accidental rapid switching.
 - On each valid switch, the app prints:
   - `ACTIVE: studying|youtube|lol`
