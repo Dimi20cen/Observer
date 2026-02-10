@@ -1,6 +1,7 @@
 import argparse
 import math
 import os
+import time
 from collections import Counter, deque
 from typing import Optional
 
@@ -8,6 +9,16 @@ import cv2
 import mediapipe as mp
 
 HAS_SOLUTIONS = hasattr(mp, "solutions")
+GESTURE_FIST = "FIST"
+GESTURE_ILY = "ILY_SIGN"
+GESTURE_THUMBS_UP = "THUMBS_UP"
+GESTURE_OPEN_PALM = "OPEN_PALM"
+ACTIVITY_BY_GESTURE = {
+    GESTURE_ILY: "studying",
+    GESTURE_THUMBS_UP: "youtube",
+    GESTURE_OPEN_PALM: "lol",
+}
+ACTIVITIES = ("studying", "youtube", "lol")
 
 
 def dist(a, b) -> float:
@@ -46,6 +57,14 @@ def thumb_up_strict(landmarks) -> bool:
     )
 
 
+def thumb_side_extended(landmarks) -> bool:
+    thumb_tip = landmarks[4]
+    thumb_mcp = landmarks[2]
+    dx = abs(thumb_tip.x - thumb_mcp.x)
+    dy = abs(thumb_tip.y - thumb_mcp.y)
+    return dx > dy and dist(thumb_tip, thumb_mcp) > 0.14
+
+
 def detect_gesture(landmarks) -> Optional[str]:
     index_up = finger_extended(landmarks, 8, 6, 5)
     middle_up = finger_extended(landmarks, 12, 10, 9)
@@ -69,11 +88,20 @@ def detect_gesture(landmarks) -> Optional[str]:
     thumb_away_from_palm = dist(thumb_tip, palm_center) > 0.22
 
     if four_fingers_curled and thumb_near_palm:
-        return "1"  # FIST
+        return GESTURE_FIST
+    if (
+        index_up
+        and pinky_up
+        and middle_curled
+        and ring_curled
+        and thumb_side_extended(landmarks)
+        and not thumb_up
+    ):
+        return GESTURE_ILY
     if four_fingers_up and thumb_away_from_palm:
-        return "2"  # OPEN PALM
+        return GESTURE_OPEN_PALM
     if thumb_up and four_fingers_curled:
-        return "3"  # THUMBS UP
+        return GESTURE_THUMBS_UP
     return None
 
 
@@ -93,11 +121,105 @@ class GestureSmoother:
         return None
 
 
+class ActivityTracker:
+    def __init__(self, cooldown_seconds: float = 0.8) -> None:
+        self.totals = {activity: 0.0 for activity in ACTIVITIES}
+        self.active_activity: Optional[str] = None
+        self.active_started_at: Optional[float] = None
+        self.cooldown_seconds = cooldown_seconds
+        self.last_switch_at = -10_000.0
+
+    def _close_active(self, now: float) -> None:
+        if self.active_activity is None or self.active_started_at is None:
+            return
+        self.totals[self.active_activity] += max(0.0, now - self.active_started_at)
+        self.active_started_at = None
+
+    def apply_gesture(self, gesture: Optional[str], now: float) -> bool:
+        if gesture is None:
+            return False
+        target = None if gesture == GESTURE_FIST else ACTIVITY_BY_GESTURE.get(gesture)
+        if gesture != GESTURE_FIST and target is None:
+            return False
+        if target == self.active_activity:
+            return False
+        if now - self.last_switch_at < self.cooldown_seconds:
+            return False
+
+        self._close_active(now)
+        self.active_activity = target
+        self.active_started_at = now if target is not None else None
+        self.last_switch_at = now
+        return True
+
+    def snapshot(self, now: float) -> dict[str, float]:
+        values = dict(self.totals)
+        if self.active_activity is not None and self.active_started_at is not None:
+            values[self.active_activity] += max(0.0, now - self.active_started_at)
+        return values
+
+
+def format_seconds(seconds: float) -> str:
+    total = int(seconds)
+    hours = total // 3600
+    minutes = (total % 3600) // 60
+    secs = total % 60
+    if hours > 0:
+        return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+    return f"{minutes:02d}:{secs:02d}"
+
+
+def draw_hud(
+    frame,
+    current_gesture: Optional[str],
+    tracker: ActivityTracker,
+    now: float,
+) -> None:
+    totals = tracker.snapshot(now)
+    lines = [
+        f"Gesture: {current_gesture or '-'}",
+        f"Activity: {tracker.active_activity or 'IDLE'}",
+        f"Studying: {format_seconds(totals['studying'])}",
+        f"YouTube : {format_seconds(totals['youtube'])}",
+        f"LoL     : {format_seconds(totals['lol'])}",
+    ]
+    y = 35
+    for line in lines:
+        cv2.putText(
+            frame,
+            line,
+            (10, y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.8,
+            (0, 255, 0),
+            2,
+            cv2.LINE_AA,
+        )
+        y += 30
+
+
+def handle_activity_update(
+    stable_gesture: Optional[str], tracker: ActivityTracker, previous_activity: Optional[str]
+) -> Optional[str]:
+    now = time.monotonic()
+    changed = tracker.apply_gesture(stable_gesture, now)
+    if not changed:
+        return previous_activity
+
+    current = tracker.active_activity
+    if current is None:
+        print("STOPPED", flush=True)
+    else:
+        print(f"ACTIVE: {current}", flush=True)
+    return current
+
+
 def run_with_solutions(cap: cv2.VideoCapture) -> None:
     mp_hands = mp.solutions.hands
     mp_drawing = mp.solutions.drawing_utils
-    previous = None
+    previous_activity = None
     smoother = GestureSmoother()
+    tracker = ActivityTracker()
 
     with mp_hands.Hands(
         static_image_mode=False,
@@ -122,22 +244,11 @@ def run_with_solutions(cap: cv2.VideoCapture) -> None:
             else:
                 current = smoother.update(None)
 
-            if current is not None and current != previous:
-                print(current, flush=True)
-                previous = current
-
-            label = current if current is not None else "-"
-            cv2.putText(
-                frame,
-                f"Gesture: {label}",
-                (10, 35),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                (0, 255, 0),
-                2,
-                cv2.LINE_AA,
+            previous_activity = handle_activity_update(
+                current, tracker, previous_activity
             )
-            cv2.imshow("Observer v1", frame)
+            draw_hud(frame, current, tracker, time.monotonic())
+            cv2.imshow("Observer v2", frame)
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
 
@@ -178,9 +289,10 @@ def run_with_tasks(cap: cv2.VideoCapture, model_path: str) -> None:
         min_hand_presence_confidence=0.6,
         min_tracking_confidence=0.6,
     )
-    previous = None
+    previous_activity = None
     smoother = GestureSmoother()
-    frame_idx = 0
+    tracker = ActivityTracker()
+    start = time.monotonic()
 
     with HandLandmarker.create_from_options(options) as hand_landmarker:
         while True:
@@ -191,8 +303,8 @@ def run_with_tasks(cap: cv2.VideoCapture, model_path: str) -> None:
             frame = cv2.flip(frame, 1)
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb)
-            result = hand_landmarker.detect_for_video(mp_image, frame_idx * 33)
-            frame_idx += 1
+            timestamp_ms = int((time.monotonic() - start) * 1000.0)
+            result = hand_landmarker.detect_for_video(mp_image, timestamp_ms)
 
             current = None
             if result.hand_landmarks:
@@ -206,22 +318,11 @@ def run_with_tasks(cap: cv2.VideoCapture, model_path: str) -> None:
             else:
                 current = smoother.update(None)
 
-            if current is not None and current != previous:
-                print(current, flush=True)
-                previous = current
-
-            label = current if current is not None else "-"
-            cv2.putText(
-                frame,
-                f"Gesture: {label}",
-                (10, 35),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                (0, 255, 0),
-                2,
-                cv2.LINE_AA,
+            previous_activity = handle_activity_update(
+                current, tracker, previous_activity
             )
-            cv2.imshow("Observer v1", frame)
+            draw_hud(frame, current, tracker, time.monotonic())
+            cv2.imshow("Observer v2", frame)
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 break
 

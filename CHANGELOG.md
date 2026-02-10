@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- v2 gesture map with activity state transitions:
+  - `FIST` -> stop
+  - `ILY SIGN` -> studying
+  - `THUMBS UP` -> youtube
+  - `OPEN PALM` -> lol
+- Per-activity timers with live HUD display while app is running.
+
+### Changed
+- Console output now reports activity transitions (`ACTIVE: ...` / `STOPPED`) instead of numeric gesture ids.
+
 ## [0.1.0] - 2026-02-09
 
 ### Added

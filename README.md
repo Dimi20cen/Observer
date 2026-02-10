@@ -1,10 +1,11 @@
-# Observer v1
+# Observer v2
 
-Recognize 3 hand gestures from an iPhone camera feed (via Iriun) and print:
+Recognize hand gestures from an iPhone camera feed (via Iriun), switch activities, and keep a running timer per activity:
 
-- `1` for `FIST`
-- `2` for `OPEN PALM`
-- `3` for `THUMBS UP`
+- `FIST` -> stop current activity (`IDLE`)
+- `ILY SIGN` -> `studying`
+- `THUMBS UP` -> `youtube`
+- `OPEN PALM` -> `lol`
 
 ## Setup
 
@@ -33,6 +34,15 @@ python app.py --camera-index 0
 ```
 
 If no video appears, try other indexes (`1`, `2`, `3`).
+
+## Runtime behavior
+
+- Gesture is smoothed over multiple frames before switching activity.
+- A cooldown prevents accidental rapid switching.
+- On each valid switch, the app prints:
+  - `ACTIVE: studying|youtube|lol`
+  - `STOPPED`
+- HUD displays current gesture, active activity, and timers.
 
 ## Controls
 

@@ -1,11 +1,12 @@
-# Observer v1 Overview
+# Observer v2 Overview
 
 ## Goal
-Recognize 3 hand gestures from a live camera feed and print:
+Recognize hand gestures from a live camera feed, map them to activities, and track per-activity time.
 
-- `1` for `FIST`
-- `2` for `OPEN PALM`
-- `3` for `THUMBS UP`
+- `FIST` -> stop current activity
+- `ILY SIGN` -> studying
+- `THUMBS UP` -> watching YouTube
+- `OPEN PALM` -> playing LoL
 
 ## Input
 - iPhone camera feed via Iriun (appears as a webcam device on desktop).
@@ -13,10 +14,12 @@ Recognize 3 hand gestures from a live camera feed and print:
 ## Runtime
 - `app.py` captures frames with OpenCV.
 - MediaPipe detects hand landmarks (Solutions API when available, Tasks API fallback on Python 3.13 builds).
-- Rule-based gesture logic classifies the hand shape.
-- Temporal smoothing stabilizes predictions before printing.
+- Rule-based gesture logic classifies hand shape (`FIST`, `ILY SIGN`, `THUMBS UP`, `OPEN PALM`).
+- Temporal smoothing stabilizes predictions.
+- Activity state machine applies gesture->activity transitions.
+- Timer accumulator keeps elapsed seconds for each activity.
 
 ## Output behavior
-- Prints only when the stable detected gesture changes.
-- Shows live preview window and current label.
+- Prints activity changes (`ACTIVE: ...` / `STOPPED`).
+- Shows live preview window with gesture, active activity, and timers.
 - Quit key: `q`.
