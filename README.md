@@ -46,6 +46,16 @@ If no video appears, try other indexes (`1`, `2`, `3`).
   - `STOPPED`
 - HUD displays current gesture, active activity, and timers.
 
+## Code layout
+
+- `app.py`: CLI entrypoint.
+- `observer/constants.py`: gesture/activity constants and mapping.
+- `observer/gestures.py`: hand geometry rules + palm-facing check.
+- `observer/gates.py`: smoothing and hold gates.
+- `observer/activity.py`: activity state machine and timer helpers.
+- `observer/runtime.py`: MediaPipe runtime loops (Solutions + Tasks).
+- `observer/ui.py`: HUD drawing.
+
 ## Controls
 
 - Press `q` to quit.

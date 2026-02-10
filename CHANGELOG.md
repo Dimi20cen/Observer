@@ -18,6 +18,7 @@ All notable changes to this project are documented in this file.
 - Console output now reports activity transitions (`ACTIVE: ...` / `STOPPED`) instead of numeric gesture ids.
 - Gestures must remain stable for at least 1.5 seconds before registration.
 - Gesture registration now requires palm-facing orientation.
+- Refactored runtime code into `observer/` modules to improve maintainability while preserving behavior.
 
 ## [0.1.0] - 2026-02-09
 

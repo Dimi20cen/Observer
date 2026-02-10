@@ -1,0 +1,13 @@
+GESTURE_FIST = "FIST"
+GESTURE_ILY = "ILY_SIGN"
+GESTURE_THUMBS_UP = "THUMBS_UP"
+GESTURE_OPEN_PALM = "OPEN_PALM"
+
+ACTIVITY_BY_GESTURE = {
+    GESTURE_ILY: "studying",
+    GESTURE_THUMBS_UP: "youtube",
+    GESTURE_OPEN_PALM: "lol",
+}
+
+ACTIVITIES = ("studying", "youtube", "lol")
+
