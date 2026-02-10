@@ -23,6 +23,7 @@ All notable changes to this project are documented in this file.
 - Relaxed `ILY SIGN` detection thresholds to reduce missed detections.
 - Added on-screen debug breakdown for all gesture check predicates.
 - Added `d` hotkey to toggle debug overlay visibility.
+- Hardened outside-hand gating fallback and added direct gesture classifier tests.
 
 ## [0.1.0] - 2026-02-09
 

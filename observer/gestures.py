@@ -162,18 +162,27 @@ def palm_facing_camera(landmarks, handedness_label: Optional[str]) -> bool:
 def outside_of_hand_showing(landmarks, handedness_label: Optional[str]) -> bool:
     wrist = landmarks[0]
     index_mcp = landmarks[5]
+    middle_mcp = landmarks[9]
     pinky_mcp = landmarks[17]
+    index_tip = landmarks[8]
+    middle_tip = landmarks[12]
+    pinky_tip = landmarks[20]
 
     v1x = index_mcp.x - wrist.x
     v1y = index_mcp.y - wrist.y
     v2x = pinky_mcp.x - wrist.x
     v2y = pinky_mcp.y - wrist.y
     normal_z = (v1x * v2y) - (v1y * v2x)
+    depth_score = (
+        (index_tip.z - index_mcp.z)
+        + (middle_tip.z - middle_mcp.z)
+        + (pinky_tip.z - pinky_mcp.z)
+    ) / 3.0
 
     if handedness_label == "Right":
-        return normal_z > 0.01
+        return normal_z > 0.01 and depth_score > -0.02
     if handedness_label == "Left":
-        return normal_z < -0.01
+        return normal_z < -0.01 and depth_score > -0.02
 
-    # Unknown handedness: do not block by orientation-only guess.
-    return False
+    # Unknown handedness: only block when depth strongly indicates outside hand.
+    return depth_score > 0.0

@@ -59,7 +59,8 @@ def run_with_solutions(cap: cv2.VideoCapture) -> None:
                 if result.multi_handedness:
                     handedness = result.multi_handedness[0].classification[0].label
                 palm_ok = palm_facing_camera(hand.landmark, handedness)
-                debug_lines = gesture_checklines(hand.landmark)
+                if debug_enabled:
+                    debug_lines = gesture_checklines(hand.landmark)
                 stable_gesture = smoother.update(detect_gesture(hand.landmark))
                 if palm_ok:
                     held_gesture = hold_gate.update(stable_gesture, time.monotonic())
@@ -145,7 +146,8 @@ def run_with_tasks(cap: cv2.VideoCapture, model_path: str) -> None:
                 if result.handedness and result.handedness[0]:
                     handedness = result.handedness[0][0].category_name
                 palm_ok = palm_facing_camera(landmarks, handedness)
-                debug_lines = gesture_checklines(landmarks)
+                if debug_enabled:
+                    debug_lines = gesture_checklines(landmarks)
                 stable_gesture = smoother.update(detect_gesture(landmarks))
                 if palm_ok:
                     held_gesture = hold_gate.update(stable_gesture, time.monotonic())

@@ -9,7 +9,7 @@ from app import (
     ActivityTracker,
     GestureHoldGate,
 )
-from observer.gestures import outside_of_hand_showing, thumb_extended_for_ily
+from observer.gestures import detect_gesture, outside_of_hand_showing, thumb_extended_for_ily
 
 
 class _LM:
@@ -17,6 +17,43 @@ class _LM:
         self.x = x
         self.y = y
         self.z = z
+
+
+def _make_landmarks() -> list[_LM]:
+    points = [_LM(0.5, 0.7, 0.0) for _ in range(21)]
+    points[0] = _LM(0.5, 0.8, 0.0)   # wrist
+    points[9] = _LM(0.5, 0.55, 0.0)  # palm center (middle MCP)
+    return points
+
+
+def _set_finger(points, finger: str, up: bool) -> None:
+    idx = {
+        "index": (5, 6, 8, 0.45),
+        "middle": (9, 10, 12, 0.50),
+        "ring": (13, 14, 16, 0.55),
+        "pinky": (17, 18, 20, 0.60),
+    }[finger]
+    mcp_i, pip_i, tip_i, x = idx
+    if up:
+        points[mcp_i] = _LM(x, 0.62, -0.02)
+        points[pip_i] = _LM(x, 0.46, -0.03)
+        points[tip_i] = _LM(x, 0.26, -0.05)
+    else:
+        points[mcp_i] = _LM(x, 0.62, 0.00)
+        points[pip_i] = _LM(x, 0.58, 0.01)
+        points[tip_i] = _LM(x, 0.68, 0.02)
+
+
+def _set_thumb(points, mode: str) -> None:
+    points[2] = _LM(0.40, 0.60, 0.00)  # thumb MCP
+    if mode == "near":
+        points[4] = _LM(0.52, 0.56, 0.00)
+    elif mode == "away":
+        points[4] = _LM(0.80, 0.40, -0.04)
+    elif mode == "side":
+        points[4] = _LM(0.74, 0.56, -0.01)
+    else:
+        raise ValueError(mode)
 
 
 class GestureHoldGateTests(unittest.TestCase):
@@ -71,6 +108,17 @@ class PalmSideGateTests(unittest.TestCase):
         self.assertFalse(outside_of_hand_showing(landmarks, "Left"))
         self.assertFalse(outside_of_hand_showing(landmarks, None))
 
+    def test_unknown_handedness_uses_depth_fallback(self):
+        landmarks = [_LM(0, 0, 0) for _ in range(21)]
+        landmarks[0] = _LM(0.5, 0.5, 0.0)   # wrist
+        landmarks[5] = _LM(0.5, 0.3, 0.0)   # index_mcp
+        landmarks[9] = _LM(0.6, 0.35, 0.0)  # middle_mcp
+        landmarks[17] = _LM(0.7, 0.5, 0.0)  # pinky_mcp
+        landmarks[8] = _LM(0.5, 0.2, 0.2)   # index_tip further from camera
+        landmarks[12] = _LM(0.6, 0.2, 0.2)  # middle_tip
+        landmarks[20] = _LM(0.7, 0.3, 0.2)  # pinky_tip
+        self.assertTrue(outside_of_hand_showing(landmarks, None))
+
 
 class GestureHeuristicTests(unittest.TestCase):
     def test_thumb_extended_for_ily_is_more_permissive(self):
@@ -79,6 +127,44 @@ class GestureHeuristicTests(unittest.TestCase):
         landmarks[2] = _LM(0.48, 0.52, 0.0)  # thumb mcp
         landmarks[4] = _LM(0.66, 0.50, 0.0)  # thumb tip
         self.assertTrue(thumb_extended_for_ily(landmarks))
+
+
+class DetectGestureTests(unittest.TestCase):
+    def test_detect_open_palm(self):
+        points = _make_landmarks()
+        _set_finger(points, "index", True)
+        _set_finger(points, "middle", True)
+        _set_finger(points, "ring", True)
+        _set_finger(points, "pinky", True)
+        _set_thumb(points, "away")
+        self.assertEqual(detect_gesture(points), GESTURE_OPEN_PALM)
+
+    def test_detect_ily(self):
+        points = _make_landmarks()
+        _set_finger(points, "index", True)
+        _set_finger(points, "middle", False)
+        _set_finger(points, "ring", False)
+        _set_finger(points, "pinky", True)
+        _set_thumb(points, "side")
+        self.assertEqual(detect_gesture(points), GESTURE_ILY)
+
+    def test_detect_one_finger(self):
+        points = _make_landmarks()
+        _set_finger(points, "index", True)
+        _set_finger(points, "middle", False)
+        _set_finger(points, "ring", False)
+        _set_finger(points, "pinky", False)
+        _set_thumb(points, "near")
+        self.assertEqual(detect_gesture(points), GESTURE_ONE_FINGER)
+
+    def test_detect_two_fingers(self):
+        points = _make_landmarks()
+        _set_finger(points, "index", True)
+        _set_finger(points, "middle", True)
+        _set_finger(points, "ring", False)
+        _set_finger(points, "pinky", False)
+        _set_thumb(points, "near")
+        self.assertEqual(detect_gesture(points), GESTURE_TWO_FINGERS)
 
 
 if __name__ == "__main__":

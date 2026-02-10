@@ -41,3 +41,9 @@
 - Affected files: `observer/runtime.py`, `README.md`, `CHANGELOG.md`
 - Migration notes: Press `d` in the app window to show/hide debug lines.
 - Validation status: Passed (`./scripts/gate.sh`).
+
+## 2026-02-10
+- Summary: Addressed review findings by tightening outside-hand fallback logic, skipping debug check computation when debug is hidden, and adding direct classifier tests for all gestures.
+- Affected files: `observer/gestures.py`, `observer/runtime.py`, `tests/test_logic.py`, `CHANGELOG.md`
+- Migration notes: Unknown-handedness frames now use depth fallback to detect outside-hand orientation.
+- Validation status: Passed (`./scripts/gate.sh`).
