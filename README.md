@@ -2,10 +2,10 @@
 
 Recognize hand gestures from an iPhone camera feed (via Iriun), switch activities, and keep a running timer per activity:
 
-- `FIST` -> stop current activity (`IDLE`)
+- `OPEN PALM` -> stop current activity (`IDLE`)
 - `ILY SIGN` -> `studying`
-- `THUMBS UP` -> `youtube`
-- `OPEN PALM` -> `lol`
+- `ONE FINGER` -> `youtube`
+- `TWO FINGERS` -> `lol`
 
 ## Setup
 
@@ -39,18 +39,19 @@ If no video appears, try other indexes (`1`, `2`, `3`).
 
 - Gesture is smoothed over multiple frames before switching activity.
 - Gesture must remain stable for at least `1.5` seconds before it is accepted.
-- Gesture is accepted only when palm side is facing the camera (`Palm OK: YES` in HUD).
+- Gesture is accepted only when the outside/back of the hand is not showing (`Palm OK: YES` in HUD).
 - A cooldown prevents accidental rapid switching.
 - On each valid switch, the app prints:
   - `ACTIVE: studying|youtube|lol`
   - `STOPPED`
 - HUD displays current gesture, active activity, and timers.
+- HUD also shows per-gesture debug checks (`OPEN`, `ILY`, `ONE`, `TWO`) with `T/F` flags.
 
 ## Code layout
 
 - `app.py`: CLI entrypoint.
 - `observer/constants.py`: gesture/activity constants and mapping.
-- `observer/gestures.py`: hand geometry rules + palm-facing check.
+- `observer/gestures.py`: hand geometry rules + outside-of-hand rejection.
 - `observer/gates.py`: smoothing and hold gates.
 - `observer/activity.py`: activity state machine and timer helpers.
 - `observer/runtime.py`: MediaPipe runtime loops (Solutions + Tasks).
@@ -59,3 +60,4 @@ If no video appears, try other indexes (`1`, `2`, `3`).
 ## Controls
 
 - Press `q` to quit.
+- Press `d` to toggle gesture debug overlay.

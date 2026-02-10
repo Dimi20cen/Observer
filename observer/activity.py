@@ -1,6 +1,6 @@
 from typing import Optional
 
-from observer.constants import ACTIVITIES, ACTIVITY_BY_GESTURE, GESTURE_FIST
+from observer.constants import ACTIVITIES, ACTIVITY_BY_GESTURE, GESTURE_STOP
 
 
 class ActivityTracker:
@@ -20,8 +20,8 @@ class ActivityTracker:
     def apply_gesture(self, gesture: Optional[str], now: float) -> bool:
         if gesture is None:
             return False
-        target = None if gesture == GESTURE_FIST else ACTIVITY_BY_GESTURE.get(gesture)
-        if gesture != GESTURE_FIST and target is None:
+        target = None if gesture == GESTURE_STOP else ACTIVITY_BY_GESTURE.get(gesture)
+        if gesture != GESTURE_STOP and target is None:
             return False
         if target == self.active_activity:
             return False
@@ -49,4 +49,3 @@ def format_seconds(seconds: float) -> str:
     if hours > 0:
         return f"{hours:02d}:{minutes:02d}:{secs:02d}"
     return f"{minutes:02d}:{secs:02d}"
-

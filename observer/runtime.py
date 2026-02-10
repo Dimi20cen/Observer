@@ -6,8 +6,8 @@ import mediapipe as mp
 
 from observer.activity import ActivityTracker
 from observer.gates import GestureHoldGate, GestureSmoother
-from observer.gestures import detect_gesture, palm_facing_camera
-from observer.ui import draw_hud
+from observer.gestures import detect_gesture, gesture_checklines, palm_facing_camera
+from observer.ui import draw_gesture_debug, draw_hud
 
 HAS_SOLUTIONS = hasattr(mp, "solutions")
 
@@ -31,6 +31,7 @@ def run_with_solutions(cap: cv2.VideoCapture) -> None:
     smoother = GestureSmoother()
     hold_gate = GestureHoldGate(1.5)
     tracker = ActivityTracker()
+    debug_enabled = True
 
     with mp_hands.Hands(
         static_image_mode=False,
@@ -50,6 +51,7 @@ def run_with_solutions(cap: cv2.VideoCapture) -> None:
             stable_gesture = None
             held_gesture = None
             palm_ok = False
+            debug_lines = []
             if result.multi_hand_landmarks:
                 hand = result.multi_hand_landmarks[0]
                 mp_drawing.draw_landmarks(frame, hand, mp_hands.HAND_CONNECTIONS)
@@ -57,6 +59,7 @@ def run_with_solutions(cap: cv2.VideoCapture) -> None:
                 if result.multi_handedness:
                     handedness = result.multi_handedness[0].classification[0].label
                 palm_ok = palm_facing_camera(hand.landmark, handedness)
+                debug_lines = gesture_checklines(hand.landmark)
                 stable_gesture = smoother.update(detect_gesture(hand.landmark))
                 if palm_ok:
                     held_gesture = hold_gate.update(stable_gesture, time.monotonic())
@@ -68,9 +71,14 @@ def run_with_solutions(cap: cv2.VideoCapture) -> None:
 
             handle_activity_update(held_gesture, tracker)
             draw_hud(frame, stable_gesture, palm_ok, tracker, time.monotonic())
+            if debug_enabled:
+                draw_gesture_debug(frame, debug_lines)
             cv2.imshow("Observer v2", frame)
-            if cv2.waitKey(1) & 0xFF == ord("q"):
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord("q"):
                 break
+            if key == ord("d"):
+                debug_enabled = not debug_enabled
 
 
 def run_with_tasks(cap: cv2.VideoCapture, model_path: str) -> None:
@@ -113,6 +121,7 @@ def run_with_tasks(cap: cv2.VideoCapture, model_path: str) -> None:
     hold_gate = GestureHoldGate(1.5)
     tracker = ActivityTracker()
     start = time.monotonic()
+    debug_enabled = True
 
     with HandLandmarker.create_from_options(options) as hand_landmarker:
         while True:
@@ -129,12 +138,14 @@ def run_with_tasks(cap: cv2.VideoCapture, model_path: str) -> None:
             stable_gesture = None
             held_gesture = None
             palm_ok = False
+            debug_lines = []
             if result.hand_landmarks:
                 landmarks = result.hand_landmarks[0]
                 handedness = None
                 if result.handedness and result.handedness[0]:
                     handedness = result.handedness[0][0].category_name
                 palm_ok = palm_facing_camera(landmarks, handedness)
+                debug_lines = gesture_checklines(landmarks)
                 stable_gesture = smoother.update(detect_gesture(landmarks))
                 if palm_ok:
                     held_gesture = hold_gate.update(stable_gesture, time.monotonic())
@@ -151,7 +162,11 @@ def run_with_tasks(cap: cv2.VideoCapture, model_path: str) -> None:
 
             handle_activity_update(held_gesture, tracker)
             draw_hud(frame, stable_gesture, palm_ok, tracker, time.monotonic())
+            if debug_enabled:
+                draw_gesture_debug(frame, debug_lines)
             cv2.imshow("Observer v2", frame)
-            if cv2.waitKey(1) & 0xFF == ord("q"):
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord("q"):
                 break
-
+            if key == ord("d"):
+                debug_enabled = not debug_enabled

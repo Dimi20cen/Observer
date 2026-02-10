@@ -5,10 +5,10 @@ import cv2
 from observer.activity import ActivityTracker
 from observer.constants import (
     ACTIVITY_BY_GESTURE,
-    GESTURE_FIST,
     GESTURE_ILY,
+    GESTURE_ONE_FINGER,
     GESTURE_OPEN_PALM,
-    GESTURE_THUMBS_UP,
+    GESTURE_TWO_FINGERS,
 )
 from observer.gates import GestureHoldGate
 from observer.runtime import HAS_SOLUTIONS, run_with_solutions, run_with_tasks
@@ -38,4 +38,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

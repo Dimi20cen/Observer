@@ -6,10 +6,10 @@ All notable changes to this project are documented in this file.
 
 ### Added
 - v2 gesture map with activity state transitions:
-  - `FIST` -> stop
+  - `OPEN PALM` -> stop
   - `ILY SIGN` -> studying
-  - `THUMBS UP` -> youtube
-  - `OPEN PALM` -> lol
+  - `ONE FINGER` -> youtube
+  - `TWO FINGERS` -> lol
 - Per-activity timers with live HUD display while app is running.
 - Runtime gate script at `scripts/gate.sh`.
 - Unit tests for activity tracking and gesture hold behavior.
@@ -19,6 +19,10 @@ All notable changes to this project are documented in this file.
 - Gestures must remain stable for at least 1.5 seconds before registration.
 - Gesture registration now requires palm-facing orientation.
 - Refactored runtime code into `observer/` modules to improve maintainability while preserving behavior.
+- Replaced strict palm-threshold gating with a simpler outside-of-hand rejection rule.
+- Relaxed `ILY SIGN` detection thresholds to reduce missed detections.
+- Added on-screen debug breakdown for all gesture check predicates.
+- Added `d` hotkey to toggle debug overlay visibility.
 
 ## [0.1.0] - 2026-02-09
 

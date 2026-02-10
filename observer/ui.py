@@ -27,3 +27,18 @@ def draw_hud(frame, current_gesture, palm_ok: bool, tracker, now: float) -> None
         )
         y += 30
 
+
+def draw_gesture_debug(frame, lines: list[str]) -> None:
+    y = 220
+    for line in lines:
+        cv2.putText(
+            frame,
+            line,
+            (10, y),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (255, 220, 120),
+            1,
+            cv2.LINE_AA,
+        )
+        y += 20
