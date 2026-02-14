@@ -1,5 +1,11 @@
 # Changes Log
 
+## 2026-02-14
+- Summary: Updated repo gate policy to add explicit `secrets` and `dependencies` checks, and updated README with gate expectations.
+- Affected files: `AGENTS.md`, `scripts/gate.sh`, `README.md`, `docs/changes.md`
+- Migration notes: Gate now fails on tracked `.env*` files (except `.env.example`/`.env.sample`) and runs scanner/audit tools when available.
+- Validation status: Passed (`./scripts/gate.sh`).
+
 ## 2026-02-10
 - Summary: Added stricter gesture registration rules for v2 runtime. Gestures now require 1.5 seconds of stable detection and palm-facing orientation before activity transitions.
 - Affected files: `app.py`, `README.md`, `docs/OVERVIEW.md`, `tests/test_logic.py`, `scripts/gate.sh`

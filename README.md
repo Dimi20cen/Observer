@@ -61,3 +61,8 @@ If no video appears, try other indexes (`1`, `2`, `3`).
 
 - Press `q` to quit.
 - Press `d` to toggle gesture debug overlay.
+
+## Quality gate
+
+- Run `./scripts/gate.sh` before handoff.
+- Gate checks syntax, tests, docs presence, basic secrets hygiene, and dependency integrity checks.

@@ -1,3 +1,3 @@
 # AGENTS.md
 
-Read `~/Projects/agent-scripts/AGENTS.md` first.
+Read `~/Projects/meta/agent-scripts/AGENTS.md` first.
